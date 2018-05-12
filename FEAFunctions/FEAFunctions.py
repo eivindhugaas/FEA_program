@@ -4,55 +4,7 @@ import matplotlib as plt
 
 class FEA:
     def __init__(self):
-        Check="OK"    
-    def shapefunction8node(self,xi=0.5,eta=1.0,zeta=0.1):
-        '''
-        isoparametric, hexahedral, natural coordinates:
-        xi is an e with a krussedull on top
-        eta is an n with a long leg
-        zeta is a snake that is bowing, it is zzzzzzeeeetaaaaaa.
-        '''
-        
-        nodecoords=[[-1.,-1.,-1.],[1.,-1.,-1.],[1.,1.,-1.],[-1.,1.,-1.],[-1.,-1.,1.],[1.,-1.,1.],[1.,1.,1.],[-1.,1.,1.]]
-        ShapeFuncVectorx=[]
-        ShapeFuncVectory=[]
-        ShapeFuncVectorz=[]
-        ShapeFuncVector=[]
-        for i in range(0,3,1):
-            for coord in nodecoords:
-                x=coord[0]
-                y=coord[1]
-                z=coord[2]
-                N=(1/8.)*(1.+(xi*x))*(1.+(eta*y))*(1.+(zeta*z))*((xi*x)+(eta*y)+(zeta*z)-2.)
-                if i==0:
-                    ShapeFuncVectorx.append(N)
-                    ShapeFuncVectorx.append(0.)
-                    ShapeFuncVectorx.append(0.)
-                if i==1:
-                    ShapeFuncVectory.append(0.)                    
-                    ShapeFuncVectory.append(N)
-                    ShapeFuncVectory.append(0.)
-                if i==2:
-                    ShapeFuncVectorz.append(0.)                    
-                    ShapeFuncVectorz.append(0.)
-                    ShapeFuncVectorz.append(N)
-
-        ShapeFuncVector.append([ShapeFuncVectorx,ShapeFuncVectory,ShapeFuncVectorz])
-        ShapeFuncVector=np.matrix(ShapeFuncVector[0])
-        return ShapeFuncVector
-    
-    #def element8node(self,disp=[],location=[],xi=0.5,eta=1.0,zeta=0.1):
-        #'''
-        #Disp must be in format=[..........] and is an array with three disp values for each node in successive order.
-        #Location must be in same format as disp and is the physical location of the nodes.
-        #'''
-        #newlocations=np.transpose(np.add(np.matrix(disp),np.matrix(location)))
-        #shapefunc=FEA.shapefunction8node(self,xi=xi,eta=eta,zeta=zeta)
-        #locationinpoint=np.dot(shapefunc,newlocations)
-        #ex=(1/4.)*(disp[]
-        #elementstrain=[ex,ey,ez,txy,txz,tyz]
-        
-        #return locationinpoint
+        Check="OK"   
     
     def stiffnessmatrix(self,v=0.3,E=210000):
         Er=(E/((1+v)*(1-(2*v))))
@@ -64,6 +16,9 @@ class FEA:
   
     def HydrostatStresshapefunc(self,nodelocations=[],exi=0.5,eta=1.0,zeta=0.1):
         N=1.        
+        
+        N=np.matrix([1./24.,1./24.,1./24.,0.,0.,0.,1./24.,1./24.,1./24.,0.,0.,0.,1./24.,1./24.,1./24.,0.,0.,0.,1./24.,1./24.,1./24.,0.,0.,0.,1./24.,1./24.,1./24.,0.,0.,0.,1./24.,1./24.,1./24.,0.,0.,0.,1./24.,1./24.,1./24.,0.,0.,0.,1./24.,1./24.,1./24.,0.,0.,0.])
+        
         return N
     
     def AvgStresshapefunc(self,nodelocations=[],exi=0.5,eta=1.0,zeta=0.1):
@@ -189,6 +144,10 @@ class FEA:
         
         return ShapeFuncVector         
     
+    def HydrostatShapefunc(self,nodelocations=[],exi=0.5,eta=1.0,zeta=0.1):
+        Ns=[1/3,1/3,1/3,0,0,0,1/3,1/3,1/3,0,0,0,1/3,1/3,1/3,0,0,0,1/3,1/3,1/3,0,0,0,1/3,1/3,1/3,0,0,0,1/3,1/3,1/3,0,0,0,1/3,1/3,1/3,0,0,0,1/3,1/3,1/3,0,0,0,]*(1/8)
+        return Ns
+    
     def twoorderStrainshapefunc(self,nodelocations=[],exi=0.5,eta=1.0,zeta=0.1):
         '''
         isoparametric, hexahedral, natural coordinates:
@@ -211,7 +170,7 @@ class FEA:
                 y=coord[1]
                 z=coord[2]
                 #N=(1/8.)*(1.+(exi*x))*(1.+(eta*y))*(1.+(zeta*z))*((exi*x)+(eta*y)+(zeta*z)-2.)
-                N=(1./8.)*(1.+(x*exi))*(1.+(eta*y))*(1+(zeta*z))
+                N=(1./8.)*(1.+(x*exi*exi*exi))*(1.+(eta*eta*eta*y))*(1+(zeta*zeta*zeta*z)) #Actually three order to get - and plus right.
 
                 if i==0:
                     ShapeFuncVectorx.append(N)
@@ -266,7 +225,7 @@ class FEA:
         '''
         Shapefunctions are defined for interpolation of displacement inside of the element. To get the strains, the shapefunctions are derived with respect to x, y and z.
         The differentiation has to be done based on a partial basis. first the shapefunctions are differentiated wrp to the natural coordinates (dNexi,...) 
-        then the derivates of the actual coordinates wrp to the natural coordinates are carried out. Theese two are the multiplied.
+        then the derivates of the actual coordinates wrp to the natural coordinates are carried out. Theese two are then multiplied.
         
         The Jacobian describes how the coordinates of the element relate to the natural coordinates.
         '''
@@ -282,6 +241,8 @@ class FEA:
             xi=nodeloc[n]
             yi=nodeloc[n+1]
             zi=nodeloc[n+2]
+            
+      
     
             J11=(dNexi[i] *xi)+J11
             J21=(dNeta[i] *xi)+J21
@@ -296,7 +257,10 @@ class FEA:
         Jdet=np.linalg.det(J)
         Jinv=np.linalg.inv(J)
 
-        B=np.matmul(Jinv,((np.matrix([dNexi,dNeta,dNzeta]))/Jdet))
+        B=Jinv*np.matrix([dNexi,dNeta,dNzeta])
+        B=B#/Jdet
+       
+        #print("det",Jdet,Jdet2)
         Bx=B[0]
         By=B[1]
         Bz=B[2]
@@ -308,7 +272,7 @@ class FEA:
         B5zy=[0.,Bz[0,0],By[0,0],0.,Bz[0,1],By[0,1],0.,Bz[0,2],By[0,2],0.,Bz[0,3],By[0,3],0.,Bz[0,4],By[0,4],0.,Bz[0,5],By[0,5],0.,Bz[0,6],By[0,6],0.,Bz[0,7],By[0,7]]
         B6zx=[Bz[0,0],0.,Bx[0,0],Bz[0,1],0.,Bx[0,1],Bz[0,2],0.,Bx[0,2],Bz[0,3],0.,Bx[0,3],Bz[0,4],0.,Bx[0,4],Bz[0,5],0.,Bx[0,5],Bz[0,6],0.,Bx[0,6],Bz[0,7],0.,Bx[0,7]]
         Btot=np.matrix([B1x,B2y,B3z,B4xy,B5zy,B6zx])
-        
+   
         
         return Btot, Jdet
     
@@ -337,4 +301,26 @@ class FEA:
         
         plt.show()        
         
+    def Volume(self,nodelocations=[]):
+        
+        n=nodelocations
+        tetrahedrons=[[1,6,8,5],[1,4,6,2],[1,6,8,4],[7,6,8,3],[3,4,6,2],[8,7,6,4]]
+        Volume=0.
+        for tet in tetrahedrons:
+        
+            t=np.array(tet)-[1,1,1,1]
+            a1=n[t[0]*3]
+            a2=n[(t[0]*3)+1]
+            a3=n[(t[0]*3)+2]
+            b1=n[(t[1]*3)]
+            b2=n[(t[1]*3)+1]
+            b3=n[(t[1]*3)+2]
+            c1=n[(t[2]*3)]
+            c2=n[(t[2]*3)+1]
+            c3=n[(t[2]*3)+2]
+            d1=n[(t[3]*3)]
+            d2=n[(t[3]*3)+1]
+            d3=n[(t[3]*3)+2]
+            Volume=((1/6.)*abs(np.linalg.det(np.matrix([[a1-d1,b1-d1,c1-d1],[a2-d2,b2-d2,c2-d2],[a3-d3,b3-d3,c3-d3]]))))+Volume    
 
+        return Volume
