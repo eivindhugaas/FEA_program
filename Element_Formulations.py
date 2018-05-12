@@ -124,9 +124,7 @@ def ThreeFieldBBarLocking():
     as added degrees of freedom to illustrate the locking effect and how the B-Bar can handle this.
     '''
     Bv=np.zeros((6,24))
-    
     Be=np.zeros((6,24))
-    
     Ke=np.zeros((24,24))      
     
     e=[]
@@ -166,8 +164,8 @@ def ThreeFieldBBarLocking():
         Ke=(Be.transpose()*C*Be*w*detJ)+Ke                        
     Fs=Ke*(np.matrix(nodedisplacement).transpose())
     
-    print("--------------------------- three field B-bar, difference between strain and  strain deducted using an enhanced B matrix from the displacement as third ----------------------------------")
-    print("Reaction forces fully integrated:")
+    print("--------------------------- B-bar method ----------------------------------")
+    print("Reaction forces:")
     print(Fs)
     print("B-Bar Stress field:")
     print(s)
