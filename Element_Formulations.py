@@ -2,16 +2,47 @@ import numpy as np
 from FEAFunctions.FEAFunctions import FEA as fea
 fea=fea()
 
-# --------------- No volume change deformation start ---------------
+'''
+This script gives reaction force in one single hexahedral 3D 8 node element using three different element formulations:
 
-v=0.5 #poisson ratio
-dx=0.1
-dy=dz=-dx*v*0.5
-nodedisplacement=[0.0,-dy,-dz,  dx,-dy,-dz,  dx,dy,-dz,  0.0,dy,-dz,  0.0,-dy,dz, dx,-dy,dz, dx,dy,dz, 0.0,dy,dz] 
+- 8 integration points (full integration) using the principle of stationary potential energy. 
+- 1 integration point (reduced integration) using the principle of stationary potential energy. 
+- 8 integration points (full integration) using B-Bar method of the Hu Washizu three field formulation 
+  with the modified B matrix formulated using the volume averaged volumetric strain to ease volumetric locking issues for nearly incompressible materials.
+
+nodedisplacement specifies the displacement at the nodes. 
+
+nodelocations specify the nodelocation of the element's nodes in numerical order according 
+to a right handed x,y,z cartesian coordinate system
+as demonstrated under. The nodedisplacement are specified in the same manner.
+
+node:         |     1      |     2      |    3      |     4       |     5     |     6     |     7    |     8    |
+coordinate:   | x   y   z  | x   y   z  | x  y   z  |  x  y   z   | x   y  z  | x   y  z  | x  y  z  |  x  y  z |
 nodelocations=[-1.,-1.,-1.,  1.,-1.,-1.,  1.,1.,-1.,  -1.,1.,-1.,  -1.,-1.,1.,  1.,-1.,1.,  1.,1.,1.,  -1.,1.,1.]
+
+The integration points for the fully integrated formulations are numbered and located according to the closest node through the Gausspoints array.
+
+Results are given in order of the nodes/integration points.
+
+Strain and stress is defined in following order: 11, 22, 33, 12, 23, 31
+
+'''
+
+'''
+Loadcases, comment in/out what to run
+'''
+
+# --------------- No volume change ---------------
+
+# v=0.5 #poisson ratio
+# dx=0.1
+# dy=dz=-dx*v*0.5
+# nodedisplacement=[0.0,-dy,-dz,  dx,-dy,-dz,  dx,dy,-dz,  0.0,dy,-dz,  0.0,-dy,dz, dx,-dy,dz, dx,dy,dz, 0.0,dy,dz] 
+# nodelocations=[-1.,-1.,-1.,  1.,-1.,-1.,  1.,1.,-1.,  -1.,1.,-1.,  -1.,-1.,1.,  1.,-1.,1.,  1.,1.,1.,  -1.,1.,1.]
+
 # --------------- Hourglass ---------------
 
-nodedisplacement=[-dx,0.0,0.0,  -dx,0.0,0.0,  dx,0.0,0.0,  dx,0.0,0.0,  dx,0.0,0.0, dx,0.0,0.0, -dx,0.0,0.0, -dx,0.0,0.0]
+# nodedisplacement=[-dx,0.0,0.0,  -dx,0.0,0.0,  dx,0.0,0.0,  dx,0.0,0.0,  dx,0.0,0.0, dx,0.0,0.0, -dx,0.0,0.0, -dx,0.0,0.0]
 
 # -------------- Pressurized pipe to benchmark volumetric locking ----------------
 
@@ -26,16 +57,20 @@ for i in range(len(nodelocations)):
     
 nodedisplacement=nodedisp   
 
-#--------------- Material Paramters -----------------
+'''
+Material Parameters
+'''
 
-v=0.495
-E=100 #MPa
+v=0.45
+E=100
 K=E/(3*(1-(2*v)))
 G=(3.*K*E)/((9.*K)-E)
 C=fea.stiffnessmatrix(v=v,E=E)
 Volume=fea.Volume(nodelocations=nodelocations)
 
-#---------- Choose element formulations, print what you want by modifying the formulations ----------
+'''
+Element formulations, print what you want by modifying the formulations, comment in/out what to run.
+'''
 
 def main():
     OneFieldFullInt()
@@ -62,7 +97,7 @@ def OneFieldFullInt():
         s=C*eu
         S.append(s)
     F=Ke*(np.matrix(nodedisplacement).transpose())
-    print("--------------------------- Standard element formulation with eight integration points ----------------------------------")
+    print("--------------------------- Standard 8 node element formulation with eight integration points (fully integrated) ----------------------------------")
     print("Reaction forces:")
     print(F)
     print("Stress:")
@@ -100,14 +135,15 @@ def OneFieldRedInt():
         Bt=B.transpose()
         Ke=(w*Bt*C*B*detJ)+Ke
     F=Ke*(np.matrix(nodedisplacement).transpose())
-    print("--------------------------- Standard element formulation with one integration point ----------------------------------")
+    print("--------------------------- Standard eight node element formulation with one integration point (reduced integration) ----------------------------------")
     print("Reaction forces:")
     print(F)
     print("Stress:")
     print(S)
     print("Strain:")
     print(e)   
-    #calculate rank defiency
+    
+    # --------------- Calculate rank defiency ---------------
     
     orderKe=len(Ke)
     nRB=6
@@ -129,42 +165,34 @@ def ThreeFieldBBarLocking():
     
     e=[]
     s=[]
-    m=(np.matrix([1,1,1,0,0,0])).transpose()
-    A=fea.UStraintoAvgStrainshapefunc()
-    eavg=np.matrix([0.,0.,0.,0.,0.,0.]).transpose()
     m=(np.matrix([1.,1.,1.,0.,0.,0.])).transpose()
-    I0=np.matrix(([1,0,0,0,0,0],[0,1,0,0,0,0],[0,0,1,0,0,0],[0,0,0,0.5,0,0],[0,0,0,0,0.5,0],[0,0,0,0,0,0.5]))
-    Cd=(2*G*(I0-((1/3)*m*(m.transpose()))))    
-    
-    Gausspoints=np.array([[-1./(3**0.5),-1./(3**0.5),-1./(3**0.5)],[1./(3**0.5),-1./(3**0.5),-1./(3**0.5)],[1./(3**0.5),1./(3**0.5),-1./(3**0.5)],[-1./(3**0.5),1./(3**0.5),-1./(3**0.5)],[-1./(3**0.5),-1./(3**0.5),1./(3**0.5)],[1./(3**0.5),-1./(3**0.5),1./(3**0.5)],[1./(3**0.5),1./(3**0.5),1./(3**0.5)],[-1./(3**0.5),1./(3**0.5),1./(3**0.5)]])
+    Gausspoints=np.array([[-1./(3**0.5),-1./(3**0.5),-1./(3**0.5)],[1./(3**0.5),-1./(3**0.5),-1./(3**0.5)],[1./(3**0.5),1./(3**0.5),-1./(3**0.5)],
+                          [-1./(3**0.5),1./(3**0.5),-1./(3**0.5)],[-1./(3**0.5),-1./(3**0.5),1./(3**0.5)],[1./(3**0.5),-1./(3**0.5),1./(3**0.5)],
+                          [1./(3**0.5),1./(3**0.5),1./(3**0.5)],[-1./(3**0.5),1./(3**0.5),1./(3**0.5)]])
     w=1.
-        
     for Gauss in Gausspoints:
 
         B,detJ=fea.shapefunc(nodelocations=nodelocations,exi=Gauss[0],eta=Gauss[1],zeta=Gauss[2])        
-        
-        Bv=((1./Volume)*(m*m.transpose()*B*w*detJ))+Bv  
-    
-    ev=Bv*(np.matrix(nodedisplacement).transpose())
+        Bv=((m*m.transpose()*B*w*detJ))+Bv              #B-matrix giving volume averaged (therefore the integration scheme) volumetric strain.             
+                                                          
+    Bv=Bv*(1./Volume)                                   #Divide by total volume to get average.              
+    ev=Bv*(np.matrix(nodedisplacement).transpose())     #Volumetric strain
     
     for Gauss in Gausspoints:
-
+        
         B,detJ=fea.shapefunc(nodelocations=nodelocations,exi=Gauss[0],eta=Gauss[1],zeta=Gauss[2])        
+        Be=(B+((1./3.)*(Bv-(m*m.transpose()*B))))                     #Modified B matrix                    
 
-        Be=(B+((1./3.)*(Bv-(m*m.transpose()*B))))                     #correct, gives diff between volumetric strain in point and avg vol strain plus the actual strain in point. So if ev=evavg Be gives e.
+        eu=Be*(np.matrix(nodedisplacement).transpose())               #Assumed strain in integration point              
+        e.append(eu)                                                  #Append assumed strains in integration points             
         
-        eu=Be*(np.matrix(nodedisplacement).transpose())               #assumed strain field, damn smood.
+        S=C*eu                                                        #Assumed stress in integration point  
+        s.append(S)                                                   #Append assumed stress integration points       
         
-        e.append(eu)                                                  #assumed strain field, damn smood and appended.
-        
-        S=(Cd*B*(np.matrix(nodedisplacement).transpose()))+((K/1)*ev) #Assumed stress field.
-        
-        s.append(S)                                                   #Assumed stress field appended.
-        
-        Ke=(Be.transpose()*C*Be*w*detJ)+Ke                        
-    Fs=Ke*(np.matrix(nodedisplacement).transpose())
+        Ke=(Be.transpose()*C*Be*w*detJ)+Ke                            #Assemble element stiffness matrix, Ke.
+    Fs=Ke*(np.matrix(nodedisplacement).transpose())                   #Get reaction forces  
     
-    print("--------------------------- B-bar method ----------------------------------")
+    print("--------------------------- B-bar method on eight node element with eight integration points (fully integrated) ----------------------------------")
     print("Reaction forces:")
     print(Fs)
     print("B-Bar Stress field:")
@@ -172,6 +200,6 @@ def ThreeFieldBBarLocking():
     print("B-Bar strain field:")
     print(e)
     print("Volumetric strain:")
-    print(ev)
+    print(ev[0,0])
 
 main()
